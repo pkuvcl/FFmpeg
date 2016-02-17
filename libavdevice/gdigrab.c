@@ -159,6 +159,11 @@ gdigrab_region_wnd_init(AVFormatContext *s1, struct gdigrab *gdigrab)
     region = NULL;
     DeleteObject(region_interior);
 
+    // 该函数改变指定窗口的属性。函数也将指定的一个值设置在窗口的额外存储空间的指定偏移位置。
+    // (1) 窗口句柄，间接给出窗口所属的类。
+    // (2) 指定将设定的大于等于0的偏移值。有效值的范围从0到额外类的存储空间的字节数减去一个整型的大小(-sizeof(int))。
+    // GWL_WNDPROC	为窗口过程设置一个新的地址。
+    // (3) 指定的替换值。
     SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR) gdigrab_region_wnd_proc);
 
     ShowWindow(hwnd, SW_SHOW);
@@ -211,6 +216,10 @@ gdigrab_region_wnd_update(AVFormatContext *s1, struct gdigrab *gdigrab)
         DispatchMessage(&msg);
     }
 }
+
+/* -----------------------------------------------------------------------------------------
+ * 以下是关键函数，上述几个 gdigrab_region 开头的函数，主要功能是实现窗口区域绘制用，无需理解
+ */ 
 
 /**
  * Initializes the gdi grab device demuxer (public device demuxer API).
@@ -403,8 +412,8 @@ gdigrab_read_header(AVFormatContext *s1)
         }
     }
 
-    st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-    st->codec->codec_id   = AV_CODEC_ID_BMP;
+    st->codec->codec_type = AVMEDIA_TYPE_VIDEO;   // 设备的类型，为视频类型
+    st->codec->codec_id   = AV_CODEC_ID_BMP;      // 这里标定了捕捉的一帧图像的格式
     st->codec->time_base  = gdigrab->time_base;
     st->codec->bit_rate   = (gdigrab->header_size + gdigrab->frame_size) * 1/av_q2d(gdigrab->time_base) * 8;
 
