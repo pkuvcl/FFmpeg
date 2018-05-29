@@ -9,6 +9,7 @@ version <next>:
 - aderivative and aintegral audio filters
 - pal75bars and pal100bars video filter sources
 - support mbedTLS based TLS
+- AVS2 video decoder via libdavs2
 
 
 version 4.0:
