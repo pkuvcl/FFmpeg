@@ -47,6 +47,16 @@ top-field-first is assumed
 
 @end table
 
+@section libdavs2
+
+AVS2/IEEE 1857.4 video decoder wrapper.
+
+This decoder allows libavcodec to decode AVS2 streams with libdavs2 library.
+Using it requires the presence of the libdavs2 headers and library during
+configuration. You need to explicitly configure the build with @code{--enable-libdavs2}.
+
+libdavs2 uses GPLv2, so you may also need to add @code{--enable-gpl} while configuring.
+
 @c man end VIDEO DECODERS
 
 @chapter Audio Decoders

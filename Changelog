@@ -13,6 +13,7 @@ version <next>:
 - adeclip filter
 - libtensorflow backend for DNN based filters like srcnn
 - vc1 decoder is now bit-exact
+- AVS2 video decoder via libdavs2
 
 
 version 4.0:

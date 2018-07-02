@@ -17,6 +17,14 @@ for more formats. None of them are used by default, their use has to be
 explicitly requested by passing the appropriate flags to
 @command{./configure}.
 
+@section libdavs2
+
+FFmpeg can make use of the libdavs2 library for AVS2 decoding.
+
+Go to @url{https://github.com/pkuvcl/davs2} and follow the instructions for
+installing the library. Then pass @code{--enable-libdavs2} to configure to
+enable it.
+
 @section Alliance for Open Media libaom
 
 FFmpeg can make use of the libaom library for AV1 decoding.
