@@ -29,7 +29,7 @@
 #include "libavutil/imgutils.h"
 #include "internal.h"
 
-#include <davs2.h>
+#include "davs2.h"
 
 typedef struct DAVS2Context {
     void *decoder;
@@ -52,42 +52,54 @@ static av_cold int davs2_init(AVCodecContext *avctx)
     /* init the decoder */
     cad->param.threads      = avctx->thread_count;
     cad->param.i_info_level = 0;
-    cad->decoder = davs2_decoder_open(&cad->param);
+    cad->decoder            = davs2_decoder_open(&cad->param);
+
+    if (!cad->decoder) {
+        av_log(avctx, AV_LOG_ERROR, "decoder created error.");
+        return AVERROR(EINVAL);
+    }
 
     av_log(avctx, AV_LOG_VERBOSE, "decoder created. %p\n", cad->decoder);
     return 0;
 }
 
-static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic, davs2_seq_info_t *headerset,int ret_type, AVFrame *frame)
+static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
+                             davs2_seq_info_t *headerset, int ret_type, AVFrame *frame)
 {
-    DAVS2Context *cad = avctx->priv_data;
+    DAVS2Context *cad    = avctx->priv_data;
     int bytes_per_sample = pic->bytes_per_sample;
-    int i;
+    int plane = 0;
+    int line  = 0;
 
     if (!headerset)
         return 0;
 
     if (!pic || ret_type == DAVS2_GOT_HEADER) {
-        avctx->width        = headerset->horizontal_size;
-        avctx->height       = headerset->vertical_size;
-        avctx->pix_fmt      = headerset->output_bitdepth == 10 ? AV_PIX_FMT_YUV420P10 : AV_PIX_FMT_YUV420P;
+        avctx->width     = headerset->horizontal_size;
+        avctx->height    = headerset->vertical_size;
+        avctx->pix_fmt   = headerset->output_bitdepth == 10 ?
+                           AV_PIX_FMT_YUV420P10 : AV_PIX_FMT_YUV420P;
 
         avctx->framerate = av_d2q(headerset->frame_rate,4096);
         return 0;
     }
 
-    for (i = 0; i < 3; ++i) {
-        int size_plane = pic->strides[i] * pic->lines[i];
-        frame->buf[i]  = av_buffer_alloc(size_plane);
+    for (plane = 0; plane < 3; ++plane) {
+        int size_line = pic->widths[plane] * bytes_per_sample;
+        frame->buf[plane]  = av_buffer_alloc(size_line * pic->lines[plane]);
 
-        if (!frame->buf[i]){
+        if (!frame->buf[plane]){
             av_log(avctx, AV_LOG_ERROR, "dump error: alloc failed.\n");
             return AVERROR(EINVAL);
         }
 
-        frame->data[i]     = frame->buf[i]->data;
-        frame->linesize[i] = pic->strides[i];
-        memcpy(frame->data[i], pic->planes[i], pic->strides[i] * pic->lines[i]);
+        frame->data[plane]     = frame->buf[plane]->data;
+        frame->linesize[plane] = pic->widths[plane];
+
+        for (line = 0; line < pic->lines[plane]; ++line)
+            memcpy(frame->data[plane] + line * size_line,
+                   pic->planes[plane] + line * pic->strides[plane],
+                   pic->widths[plane] * bytes_per_sample);
     }
 
     frame->width     = cad->headerset.horizontal_size;
@@ -107,14 +119,14 @@ static av_cold int davs2_end(AVCodecContext *avctx)
     /* close the decoder */
     if (cad->decoder) {
         davs2_decoder_close(cad->decoder);
-        av_log(avctx, AV_LOG_VERBOSE, "decoder destroyed. %p; frames %d\n", cad->decoder, cad->decoded_frames);
         cad->decoder = NULL;
     }
 
     return 0;
 }
 
-static int davs2_decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPacket *avpkt)
+static int davs2_decode_frame(AVCodecContext *avctx, void *data,
+                              int *got_frame, AVPacket *avpkt)
 {
     DAVS2Context *cad      = avctx->priv_data;
     int           buf_size = avpkt->size;
@@ -122,7 +134,7 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
     AVFrame      *frame    = data;
     int           ret      = DAVS2_DEFAULT;
 
-    if(!buf_size) {
+    if (!buf_size) {
         return 0;
     }
 
@@ -135,10 +147,7 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
 
 
     if (ret == DAVS2_ERROR) {
-        av_log(avctx, AV_LOG_ERROR, "A decoder error occurred: can't read packet\n");
-        if (cad->decoder) {
-            av_log(avctx, AV_LOG_VERBOSE, "decoder destroyed. %p; frames %d\n", cad->decoder, cad->decoded_frames);
-        }
+        av_log(avctx, AV_LOG_ERROR, "Decoder error: can't read packet\n");
         return AVERROR(EINVAL);
     }
 
