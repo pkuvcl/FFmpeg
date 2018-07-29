@@ -59,7 +59,6 @@ static av_cold int davs2_init(AVCodecContext *avctx)
         return AVERROR(EINVAL);
     }
 
-    av_log(avctx, AV_LOG_VERBOSE, "decoder created. %p\n", cad->decoder);
     return 0;
 }
 
@@ -163,7 +162,7 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data,
 
 AVCodec ff_libdavs2_decoder = {
     .name           = "libdavs2",
-    .long_name      = NULL_IF_CONFIG_SMALL("Decoder for AVS2/IEEE 1857.4"),
+    .long_name      = NULL_IF_CONFIG_SMALL("Decoder for AVS2-P2/IEEE 1857.4"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_AVS2,
     .priv_data_size = sizeof(DAVS2Context),
