@@ -51,7 +51,7 @@ static av_cold int davs2_init(AVCodecContext *avctx)
 
     /* init the decoder */
     cad->param.threads      = avctx->thread_count;
-    cad->param.i_info_level = 0;
+    cad->param.info_level   = DAVS2_LOG_WARNING;
     cad->decoder            = davs2_decoder_open(&cad->param);
 
     if (!cad->decoder) {
@@ -75,9 +75,9 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
         return 0;
 
     if (!pic || ret_type == DAVS2_GOT_HEADER) {
-        avctx->width     = headerset->horizontal_size;
-        avctx->height    = headerset->vertical_size;
-        avctx->pix_fmt   = headerset->output_bitdepth == 10 ?
+        avctx->width     = headerset->width;
+        avctx->height    = headerset->height;
+        avctx->pix_fmt   = headerset->output_bit_depth == 10 ?
                            AV_PIX_FMT_YUV420P10 : AV_PIX_FMT_YUV420P;
 
         avctx->framerate = av_d2q(headerset->frame_rate,4096);
@@ -102,8 +102,8 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
                    pic->widths[plane] * bytes_per_sample);
     }
 
-    frame->width     = cad->headerset.horizontal_size;
-    frame->height    = cad->headerset.vertical_size;
+    frame->width     = cad->headerset.width;
+    frame->height    = cad->headerset.height;
     frame->pts       = cad->out_frame.pts;
     frame->pict_type = pic->type;
     frame->format    = avctx->pix_fmt;
