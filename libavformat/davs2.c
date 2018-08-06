@@ -33,7 +33,10 @@
 
 static int avs2_probe(AVProbeData *p)
 {
-    uint32_t code= -1;
+    if (AV_RB32(p->buf) != 0x1B0){
+        return 0;
+    }
+    uint32_t code= -1, hds=0, pic=0, seq=0;
     uint8_t state=0;
     const uint8_t *ptr = p->buf, *end = p->buf + p->buf_size, *sqb=0;
 
@@ -42,23 +45,27 @@ static int avs2_probe(AVProbeData *p)
         state = code & 0xFF;
         if ((code & 0xffffff00) == 0x100) {
             if (ISUNIT(state)) {
-                if (sqb) {
-                    break;
+                if (sqb && !hds) {
+                    hds = ptr - sqb;
                 }
                 if (ISSQH(state)) {
                     if (!ISAVS2(*ptr))
                         return 0;
                     sqb = ptr;
+                    seq++;
+                } else if (ISPIC(state)) {
+                    pic++;
                 } else if (ISEND(state)) {
-                    return 0;
-                }
+                    break;
+                } 
             }
         }
     }
-    if (sqb && ptr-sqb >= 21){
-        return AVPROBE_SCORE_EXTENSION+2;
+    if (seq && hds >= 21 && pic){
+        return AVPROBE_SCORE_EXTENSION + 2; // more than cavs
     }
+
     return 0;
 }
 
-FF_DEF_RAWVIDEO_DEMUXER(avs2, "raw AVS2/IEEE 1857.4", avs2_probe, "avs,avs2", AV_CODEC_ID_AVS2)
+FF_DEF_RAWVIDEO_DEMUXER(avs2, "raw AVS2-P2/IEEE 1857.4", avs2_probe, "avs,avs2", AV_CODEC_ID_AVS2)
