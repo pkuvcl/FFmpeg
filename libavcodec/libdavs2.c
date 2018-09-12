@@ -22,13 +22,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/avassert.h"
-#include "libavutil/common.h"
-#include "libavutil/avutil.h"
 #include "avcodec.h"
-#include "libavutil/imgutils.h"
-#include "internal.h"
-
 #include "davs2.h"
 
 typedef struct DAVS2Context {
@@ -51,14 +45,15 @@ static av_cold int davs2_init(AVCodecContext *avctx)
 
     /* init the decoder */
     cad->param.threads      = avctx->thread_count;
-    cad->param.info_level   = DAVS2_LOG_WARNING;
+    cad->param.info_level   = 0;
     cad->decoder            = davs2_decoder_open(&cad->param);
 
     if (!cad->decoder) {
         av_log(avctx, AV_LOG_ERROR, "decoder created error.");
-        return AVERROR(EINVAL);
+        return AVERROR_EXTERNAL;
     }
 
+    av_log(avctx, AV_LOG_VERBOSE, "decoder created. %p\n", cad->decoder);
     return 0;
 }
 
@@ -89,7 +84,7 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
 
         if (!frame->buf[plane]){
             av_log(avctx, AV_LOG_ERROR, "dump error: alloc failed.\n");
-            return AVERROR(EINVAL);
+            return AVERROR(ENOMEM);
         }
 
         frame->data[plane]     = frame->buf[plane]->data;
@@ -147,7 +142,7 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data,
 
     if (ret == DAVS2_ERROR) {
         av_log(avctx, AV_LOG_ERROR, "Decoder error: can't read packet\n");
-        return AVERROR(EINVAL);
+        return AVERROR_EXTERNAL;
     }
 
     ret = davs2_decoder_recv_frame(cad->decoder, &cad->headerset, &cad->out_frame);
@@ -162,7 +157,7 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data,
 
 AVCodec ff_libdavs2_decoder = {
     .name           = "libdavs2",
-    .long_name      = NULL_IF_CONFIG_SMALL("Decoder for AVS2-P2/IEEE 1857.4"),
+    .long_name      = NULL_IF_CONFIG_SMALL("libdavs2 AVS2-P2/IEEE1857.4"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_AVS2,
     .priv_data_size = sizeof(DAVS2Context),
