@@ -2726,6 +2726,35 @@ Reduces detail but attempts to preserve color at extremely low bitrates.
 
 @end table
 
+@section libxavs2
+
+AVS2/IEEE 1857.4 video encoder wrapper.
+
+This encoder allows libavcodec to encode AVS2 streams with xavs2 library.
+
+@subsection Options
+
+@table @option
+
+@item i_lcurow_threads
+number of parallel threads for rows.
+
+@item i_initial_qp
+
+@item preset_level
+Speed level(0~9), default 0.
+
+@item intra_period
+
+@item hierarchical_ref
+
+@item num_bframes
+
+@item xavs2-params
+set the xavs2 configuration using a :-separated list of key=value parameters.
+
+@end table
+
 @c man end VIDEO ENCODERS
 
 @chapter Subtitles Encoders
