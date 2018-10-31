@@ -94,11 +94,26 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
                    pic->widths[plane] * bytes_per_sample);
     }
 
+    switch (pic->type) {
+        case DAVS2_PIC_I:
+            frame->pict_type = AV_PICTURE_TYPE_I;
+            break;
+        case DAVS2_PIC_P:
+            frame->pict_type = AV_PICTURE_TYPE_P;
+            break;
+        case DAVS2_PIC_B:
+        case DAVS2_PIC_F:
+            frame->pict_type = AV_PICTURE_TYPE_B;
+            break;
+        default:
+            frame->pict_type = AV_PICTURE_TYPE_NONE;
+    }
+
     frame->width     = cad->headerset.width;
     frame->height    = cad->headerset.height;
     frame->pts       = cad->out_frame.pts;
-    frame->pict_type = pic->type;
     frame->format    = avctx->pix_fmt;
+    frame->key_frame = pic->type == DAVS2_PIC_I ? 1 : 0;
 
     return 1;
 }
