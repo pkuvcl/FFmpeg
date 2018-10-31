@@ -129,7 +129,16 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data,
     int           ret      = DAVS2_DEFAULT;
 
     if (!buf_size) {
-        return 0;
+        ret = davs2_decoder_flush(cad->decoder, &cad->headerset, &cad->out_frame);
+        if (ret == DAVS2_END) {
+            return 0;
+        } else if (ret == DAVS2_GOT_FRAME) {
+            *got_frame = davs2_dump_frames(avctx, &cad->out_frame, &cad->headerset, ret, frame);
+            davs2_decoder_frame_unref(cad->decoder, &cad->out_frame);
+            return ret;
+        } else {
+            return AVERROR_EXTERNAL;
+        }
     }
 
     cad->packet.data = buf_ptr;
