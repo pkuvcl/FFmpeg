@@ -55,7 +55,7 @@ static av_cold int davs2_init(AVCodecContext *avctx)
     return 0;
 }
 
-static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
+static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic, int *got_frame,
                              davs2_seq_info_t *headerset, int ret_type, AVFrame *frame)
 {
     DAVS2Context *cad    = avctx->priv_data;
@@ -63,8 +63,10 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
     int plane = 0;
     int line  = 0;
 
-    if (!headerset)
+    if (!headerset) {
+        *got_frame = 0;
         return 0;
+    }
 
     if (!pic || ret_type == DAVS2_GOT_HEADER) {
         avctx->width     = headerset->width;
@@ -73,25 +75,8 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
                            AV_PIX_FMT_YUV420P10 : AV_PIX_FMT_YUV420P;
 
         avctx->framerate = av_d2q(headerset->frame_rate,4096);
+        *got_frame = 0;
         return 0;
-    }
-
-    for (plane = 0; plane < 3; ++plane) {
-        int size_line = pic->widths[plane] * bytes_per_sample;
-        frame->buf[plane]  = av_buffer_alloc(size_line * pic->lines[plane]);
-
-        if (!frame->buf[plane]){
-            av_log(avctx, AV_LOG_ERROR, "dump error: alloc failed.\n");
-            return AVERROR(ENOMEM);
-        }
-
-        frame->data[plane]     = frame->buf[plane]->data;
-        frame->linesize[plane] = size_line;
-
-        for (line = 0; line < pic->lines[plane]; ++line)
-            memcpy(frame->data[plane] + line * size_line,
-                   pic->planes[plane] + line * pic->strides[plane],
-                   pic->widths[plane] * bytes_per_sample);
     }
 
     switch (pic->type) {
@@ -109,13 +94,31 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic,
             frame->pict_type = AV_PICTURE_TYPE_NONE;
     }
 
+    for (plane = 0; plane < 3; ++plane) {
+        int size_line = pic->widths[plane] * bytes_per_sample;
+        frame->buf[plane]  = av_buffer_alloc(size_line * pic->lines[plane]);
+
+        if (!frame->buf[plane]){
+            av_log(avctx, AV_LOG_ERROR, "dump error: alloc failed.\n");
+            return AVERROR(ENOMEM);
+        }
+
+        frame->data[plane]     = frame->buf[plane]->data;
+        frame->linesize[plane] = pic->widths[plane];
+
+        for (line = 0; line < pic->lines[plane]; ++line)
+            memcpy(frame->data[plane] + line * size_line,
+                   pic->planes[plane] + line * pic->strides[plane],
+                   pic->widths[plane] * bytes_per_sample);
+    }
+
     frame->width     = cad->headerset.width;
     frame->height    = cad->headerset.height;
     frame->pts       = cad->out_frame.pts;
     frame->format    = avctx->pix_fmt;
-    frame->key_frame = pic->type == DAVS2_PIC_I ? 1 : 0;
 
-    return 1;
+    *got_frame = 1;
+    return 0;
 }
 
 static av_cold int davs2_end(AVCodecContext *avctx)
@@ -145,7 +148,7 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data,
         if (ret == DAVS2_END) {
             return 0;
         } else if (ret == DAVS2_GOT_FRAME) {
-            *got_frame = davs2_dump_frames(avctx, &cad->out_frame, &cad->headerset, ret, frame);
+            ret = davs2_dump_frames(avctx, &cad->out_frame, &cad->headerset, ret, frame);
             davs2_decoder_frame_unref(cad->decoder, &cad->out_frame);
             return ret;
         } else {
@@ -169,11 +172,11 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data,
     ret = davs2_decoder_recv_frame(cad->decoder, &cad->headerset, &cad->out_frame);
 
     if (ret != DAVS2_DEFAULT) {
-        *got_frame = davs2_dump_frames(avctx, &cad->out_frame, &cad->headerset, ret, frame);
+        ret = davs2_dump_frames(avctx, &cad->out_frame, &cad->headerset, ret, frame);
         davs2_decoder_frame_unref(cad->decoder, &cad->out_frame);
     }
 
-    return buf_size;
+    return ret == 0 ? buf_size : ret;
 }
 
 AVCodec ff_libdavs2_decoder = {
