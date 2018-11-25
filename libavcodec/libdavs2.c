@@ -184,7 +184,7 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data,
     ret = davs2_decoder_recv_frame(cad->decoder, &cad->headerset, &cad->out_frame);
 
     if (ret != DAVS2_DEFAULT) {
-        ret = davs2_dump_frames(avctx, &cad->out_frame, &cad->headerset, ret, frame);
+        ret = davs2_dump_frames(avctx, &cad->out_frame, got_frame, &cad->headerset, ret, frame);
         davs2_decoder_frame_unref(cad->decoder, &cad->out_frame);
     }
 
