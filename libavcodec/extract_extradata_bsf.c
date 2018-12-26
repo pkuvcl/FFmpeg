@@ -305,6 +305,7 @@ fail:
 
 static const enum AVCodecID codec_ids[] = {
     AV_CODEC_ID_CAVS,
+    AV_CODEC_ID_AVS2,
     AV_CODEC_ID_H264,
     AV_CODEC_ID_HEVC,
     AV_CODEC_ID_MPEG1VIDEO,

@@ -147,6 +147,8 @@ static void register_all(void)
     REGISTER_ENCDEC (AVRP,              avrp);
     REGISTER_DECODER(AVRN,              avrn);
     REGISTER_DECODER(AVS,               avs);
+    REGISTER_DECODER(LIBDAVS2,          libdavs2);
+    REGISTER_ENCODER(LIBXAVS2,          libxavs2);
     REGISTER_ENCDEC (AVUI,              avui);
     REGISTER_ENCDEC (AYUV,              ayuv);
     REGISTER_DECODER(BETHSOFTVID,       bethsoftvid);
@@ -714,6 +716,7 @@ static void register_all(void)
     REGISTER_PARSER(AAC_LATM,           aac_latm);
     REGISTER_PARSER(AC3,                ac3);
     REGISTER_PARSER(ADX,                adx);
+    REGISTER_PARSER(AVS2,               avs2);
     REGISTER_PARSER(BMP,                bmp);
     REGISTER_PARSER(CAVSVIDEO,          cavsvideo);
     REGISTER_PARSER(COOK,               cook);
