@@ -634,6 +634,14 @@ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
                 *q++ = 'C';
                 *q++ = '-';
                 *q++ = '1';
+            } else if (stream_type == STREAM_TYPE_VIDEO_CAVS ||
+                       stream_type == STREAM_TYPE_VIDEO_AVS2) {
+                *q++ = 0x05; /*MPEG-2 registration descriptor*/
+                *q++ = 4;
+                *q++ = 'A';
+                *q++ = 'V';
+                *q++ = 'S';
+                *q++ = 'V';
             }
             break;
         case AVMEDIA_TYPE_DATA:
@@ -1593,6 +1601,32 @@ static int mpegts_write_packet_internal(AVFormatContext *s, AVPacket *pkt)
             data[5] = 0xf0; // any slice type (0xe) + rbsp stop one bit
             buf     = data;
             size    = pkt->size + 6 + extradd;
+        }
+    } else if (st->codecpar->codec_id == AV_CODEC_ID_AVS2) {
+        const uint8_t *p = buf, *buf_end = p + size;
+        uint32_t state = -1;
+
+        if (pkt->size < 4) {
+            av_log(s, AV_LOG_ERROR, "Invalid AVS2 packet: size = %d\n", pkt->size);
+            return AVERROR_INVALIDDATA;
+        }
+
+        do {
+            p = avpriv_find_start_code(p, buf_end, &state);
+            av_log(s, AV_LOG_TRACE, "nal %"PRIx32"\n", state & 0xff);
+        } while (p < buf_end && ((state & 0xff) != 0xb0)
+                             && ((state & 0xff) != 0xb1)
+                             && ((state & 0xff) != 0xb3)
+                             && ((state & 0xff) != 0xb6));
+
+        if ((state & 0xff) == 0xb0 || (state & 0xff) == 0xb3 || (state & 0xff) == 0xb6) {
+            data = av_malloc(pkt->size);
+            if (!data)
+                return AVERROR(ENOMEM);
+
+            memcpy(data, pkt->data, pkt->size);
+            buf     = data;
+            size    = pkt->size;
         }
     } else if (st->codecpar->codec_id == AV_CODEC_ID_AAC) {
         if (pkt->size < 2) {
