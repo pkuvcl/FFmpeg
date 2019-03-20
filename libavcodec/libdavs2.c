@@ -119,6 +119,7 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic, int *g
             memcpy(frame->data[plane] + line * size_line,
                    pic->planes[plane] + line * pic->strides[plane],
                    pic->widths[plane] * bytes_per_sample);
+
     }
 
     frame->width     = cad->headerset.width;
@@ -141,6 +142,27 @@ static av_cold int davs2_end(AVCodecContext *avctx)
     }
 
     return 0;
+}
+
+/* forget old pics after a seek */
+static int davs2_flush(AVCodecContext *avctx)
+{
+    DAVS2Context *cad      = avctx->priv_data;
+    int           ret      = DAVS2_DEFAULT;
+
+    while (ret != DAVS2_ERROR && ret != DAVS2_END) {
+        ret = davs2_decoder_flush(cad->decoder, &cad->headerset, &cad->out_frame);
+        if (ret == DAVS2_GOT_FRAME) {
+            davs2_decoder_frame_unref(cad->decoder, &cad->out_frame);
+        }
+    }
+
+    if (ret == DAVS2_ERROR) {
+        av_log(avctx, AV_LOG_ERROR, "Decoder error: can't flush decoder\n");
+        return AVERROR_EXTERNAL;
+    }
+
+    return DAVS2_DEFAULT;
 }
 
 static int send_delayed_frame(AVCodecContext *avctx, AVFrame *frame, int *got_frame)
@@ -206,7 +228,8 @@ AVCodec ff_libdavs2_decoder = {
     .init           = davs2_init,
     .close          = davs2_end,
     .decode         = davs2_decode_frame,
-    .capabilities   =  AV_CODEC_CAP_DELAY | AV_CODEC_CAP_AUTO_THREADS,//AV_CODEC_CAP_DR1 |
+    .flush          = davs2_flush,
+    .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_AUTO_THREADS,
     .pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P10,
                                                      AV_PIX_FMT_NONE },
     .wrapper_name   = "libdavs2",
