@@ -33,7 +33,7 @@
 
 static int avs2_probe(AVProbeData *p)
 {
-    if (AV_RB32(p->buf) != 0x1B0){
+    if (AV_RB32(p->buf) != 0x1B0 && AV_RB32(p->buf) != 0x1B1){
         return 0;
     }
     uint32_t code= -1, hds=0, pic=0, seq=0;
