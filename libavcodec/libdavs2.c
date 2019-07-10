@@ -59,13 +59,20 @@ static av_cold int davs2_init(AVCodecContext *avctx)
     return 0;
 }
 
+static void davs2_frame_unref(void *opaque, uint8_t *data) {
+    DAVS2Context *cad = (DAVS2Context *)opaque;
+    if (cad->decoder) {
+        davs2_decoder_frame_unref(cad->decoder, (davs2_picture_t *)data);
+    } else {
+        av_log(NULL, AV_LOG_WARNING, "Decoder not found, frame unreference failed.\n");
+    }
+}
+
 static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic, int *got_frame,
                              davs2_seq_info_t *headerset, int ret_type, AVFrame *frame)
 {
     DAVS2Context *cad    = avctx->priv_data;
-    int bytes_per_sample = pic->bytes_per_sample;
-    int plane = 0;
-    int line  = 0;
+    int plane;
 
     if (!headerset) {
         *got_frame = 0;
@@ -103,29 +110,26 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic, int *g
             return AVERROR_EXTERNAL;
     }
 
-    for (plane = 0; plane < 3; ++plane) {
-        int size_line = pic->widths[plane] * bytes_per_sample;
-        frame->buf[plane]  = av_buffer_alloc(size_line * pic->lines[plane]);
-
-        if (!frame->buf[plane]){
-            av_log(avctx, AV_LOG_ERROR, "Decoder error: allocation failure, can't dump frames.\n");
-            return AVERROR(ENOMEM);
-        }
-
-        frame->data[plane]     = frame->buf[plane]->data;
-        frame->linesize[plane] = size_line;
-
-        for (line = 0; line < pic->lines[plane]; ++line)
-            memcpy(frame->data[plane] + line * size_line,
-                   pic->planes[plane] + line * pic->strides[plane],
-                   pic->widths[plane] * bytes_per_sample);
-
-    }
-
     frame->width     = cad->headerset.width;
     frame->height    = cad->headerset.height;
     frame->pts       = cad->out_frame.pts;
     frame->format    = avctx->pix_fmt;
+
+    frame->buf[0]    = av_buffer_create((uint8_t *)pic,
+                                        sizeof(pic),
+                                        davs2_frame_unref,
+                                        (void *)cad,
+                                        AV_BUFFER_FLAG_READONLY);
+    if (!frame->buf[0]) {
+        av_log(avctx, AV_LOG_ERROR,
+            "Decoder error: allocation failure, can't dump frames.\n");
+        return AVERROR(ENOMEM);
+    }
+
+    for (plane = 0; plane < 3; ++plane) {
+        frame->linesize[plane] = pic->strides[plane];
+        frame->data[plane] = pic->planes[plane];
+    }
 
     *got_frame = 1;
     return 0;
@@ -171,7 +175,6 @@ static int send_delayed_frame(AVCodecContext *avctx, AVFrame *frame, int *got_fr
     }
     if (ret == DAVS2_GOT_FRAME) {
         ret = davs2_dump_frames(avctx, &cad->out_frame, got_frame, &cad->headerset, ret, frame);
-        davs2_decoder_frame_unref(cad->decoder, &cad->out_frame);
     }
     return ret;
 }
@@ -207,7 +210,6 @@ static int davs2_decode_frame(AVCodecContext *avctx, void *data,
 
     if (ret != DAVS2_DEFAULT) {
         ret = davs2_dump_frames(avctx, &cad->out_frame, got_frame, &cad->headerset, ret, frame);
-        davs2_decoder_frame_unref(cad->decoder, &cad->out_frame);
     }
 
     return ret == 0 ? buf_size : ret;
