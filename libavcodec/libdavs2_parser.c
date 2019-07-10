@@ -23,8 +23,10 @@
 
 #define SLICE_MAX_START_CODE    0x000001af
 
+#define ISSQH(x)  ((x) == 0xB0 )
+#define ISEND(x)  ((x) == 0xB1 )
 #define ISPIC(x)  ((x) == 0xB3 || (x) == 0xB6)
-#define ISUNIT(x) ((x) == 0xB0 || (x) == 0xB1 || (x) == 0xB2 || ISPIC(x))
+#define ISUNIT(x) ( ISSQH(x) || ISEND(x) || (x) == 0xB2 || ISPIC(x) || (x) == 0xB5 || (x) == 0xB7 )
 
 static int avs2_find_frame_end(ParseContext *pc, const uint8_t *buf,
                                int buf_size) {
