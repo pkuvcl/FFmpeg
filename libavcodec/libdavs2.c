@@ -61,9 +61,13 @@ static av_cold int davs2_init(AVCodecContext *avctx)
 }
 
 static void davs2_frame_unref(void *opaque, uint8_t *data) {
-    DAVS2Context *cad = (DAVS2Context *)opaque;
+    DAVS2Context    *cad = (DAVS2Context *)opaque;
+    davs2_picture_t  pic;
+
+    pic.magic = (davs2_picture_t *)data;
+
     if (cad->decoder) {
-        davs2_decoder_frame_unref(cad->decoder, (davs2_picture_t *)data);
+        davs2_decoder_frame_unref(cad->decoder, &pic);
     } else {
         av_log(NULL, AV_LOG_WARNING, "Decoder not found, frame unreference failed.\n");
     }
@@ -116,8 +120,9 @@ static int davs2_dump_frames(AVCodecContext *avctx, davs2_picture_t *pic, int *g
     frame->pts       = cad->out_frame.pts;
     frame->format    = avctx->pix_fmt;
 
-    frame->buf[0]    = av_buffer_create((uint8_t *)pic,
-                                        sizeof(pic),
+    /* handle the actual picture in magic */
+    frame->buf[0]    = av_buffer_create((uint8_t *)pic->magic,
+                                        sizeof(davs2_picture_t *),
                                         davs2_frame_unref,
                                         (void *)cad,
                                         AV_BUFFER_FLAG_READONLY);
